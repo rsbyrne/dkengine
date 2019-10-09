@@ -8,14 +8,21 @@ import os
 import json
 import csv
 
-def start_game(deckname, username = 'anonymous'):
-    deck = load_deck(deckname)
-    try:
-        gameObj = load_game(deck, username)
-        gameObj._message("Loaded " + deckname + " as " + username)
-    except:
-        gameObj = Game(deck, username)
-        gameObj._message("Started " + deckname + " as " + username)
+scriptPath = os.path.abspath(os.path.dirname(__file__))
+
+def start_game(deckName, deckPath = '.', savePath = '.', username = 'anonymous'):
+    deck = load_deck(deckName, deckPath)
+    saveFiles = [file for file in os.listdir(savePath) if os.path.splitext(file)[1] == '.pkl']
+    save_found = False
+    for file in saveFiles:
+        if username in file and deck[0]['name'] in file:
+            save_found = True
+    if save_found:
+        gameObj = load_game(deck, username, savePath)
+        gameObj._message("Loaded " + deckName + " as " + username)
+    else:
+        gameObj = Game(deck, username, savePath = savePath)
+        gameObj._message("Started " + deckName + " as " + username)
     gameObj.start_session()
 
 graphicsDict = {}
@@ -32,8 +39,21 @@ def hashID(card):
     cardID = int(hashlib.sha256(cardstring.encode('utf-8')).hexdigest(), 16) % 10**8
     return cardID
 
-def load_deck_json(name, outputPath = ''):
-    filePath = os.path.join(outputPath, name)
+def load_deck(name, loadPath = '.'):
+    extension = os.path.splitext(name)[1]
+    print(name, loadPath, extension)
+    if extension == '.json':
+        return load_deck_json(name, loadPath)
+    elif extension == '.csv':
+        return load_deck_csv(name, loadPath)
+    elif extension == '' and loadPath == '.':
+        loadDir = os.path.join(scriptPath, 'content')
+        return load_deck_csv(name + '.csv', loadDir)
+    else:
+        raise Exception
+
+def load_deck_json(name, loadPath = '.'):
+    filePath = os.path.join(loadPath, name)
     with open(filePath, 'r') as file:
         deck = json.load(file)
     deck = tuple(deck)
@@ -41,8 +61,8 @@ def load_deck_json(name, outputPath = ''):
         deck[1][index] = tuple(row)
     return deck
 
-def load_deck_csv(name, outputPath = ''):
-    filePath = os.path.join(outputPath, name)
+def load_deck_csv(name, loadPath = '.'):
+    filePath = os.path.join(loadPath, name)
     data = []
     with open(filePath, 'r', newline = '') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter = ',')
@@ -59,13 +79,6 @@ def load_deck_csv(name, outputPath = ''):
         }
     deck = (headerDict, data)
     return deck
-
-def load_deck(name, outputPath = ''):
-    extension = os.path.splitext(name)[1]
-    if extension == '.json':
-        return load_deck_json(name, outputPath)
-    elif extension == '.csv':
-        return load_deck_csv(name, outputPath)
 
 def load_game(deck, username, loaddir = '.', name = None):
     if name is None:
@@ -93,10 +106,12 @@ class Game:
             deck = None,
             username = 'default',
             _loadmem = None,
+            savePath = '.',
             **kwargs
             ):
 
         self.username = username
+        self.savePath = savePath
         self.header, self.deck = deck
 
         if _loadmem is None:
@@ -139,7 +154,7 @@ class Game:
         for key, val in self.memory.items():
             setattr(self, key, val)
 
-    def save(self, name = None, outputPath = '.'):
+    def save(self, name = None, outputPath = None):
         self._message("Saving...")
         time_str = str(time.time())[:-8]
         if name is None:
@@ -147,6 +162,8 @@ class Game:
                 + '_' + self.header['name'] \
                 + '_' + time_str
         extension = '.pkl'
+        if outputPath is None:
+            outputPath = self.savePath
         filename = os.path.join(outputPath, name + extension)
         with open(filename, 'wb') as f:
             pickle.dump(self.memory, f, pickle.HIGHEST_PROTOCOL)
@@ -249,4 +266,3 @@ class Game:
         self.save()
         graphics('quit')
         self._message("Rest up - you've earned it!")
-
