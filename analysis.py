@@ -7,34 +7,42 @@ import math
 
 present_time = lambda: round(time.time())
 
-def observe_tau_card(history, cardID, index):
-    cardHistory = history.cardHistories[cardID]
+def observe_lambda(startTime, endTime, endPerf):
+    endPerf = max(1e-9, endPerf)
+    t_interval = endTime - startTime
+    lambdaVal = -math.log(max(1e-9, endPerf)) / t_interval
+    return lambdaVal
+
+def observe_lambda_card(history, cardID, index):
+    cardHistory = history.card_histories[cardID]
     endTime, endPerf = cardHistory[index]
     startTime, startPerf = cardHistory[index - 1]
-    t = endTime - startTime
-    if endPerf >= startPerf:
-        return None
-    decayRatio = startPerf / endPerf
-    tau = t / math.log(decayRatio)
-    return tau
+    return observe_lambda(startTime, endTime, endPerf)
 
-def observe_taus_card(history, cardID):
-    cardHistory = history.cardHistories[cardID]
-    taus = [
-        observe_tau_card(history, cardID, i) \
+def observe_lambdas_card(history, cardID):
+    cardHistory = history.card_histories[cardID]
+    lambdas = [
+        observe_lambda_card(history, cardID, i) \
             for i in range(1, len(cardHistory))
         ]
-    return taus
+    return lambdas
 
-def tauFn(history):
+def observe_all_lambdas(history):
+    cardLambdas = {}
+    for cardID in history.card_histories:
+        lambdaVals = observe_lambdas_card(history, cardID)
+        cardLambdas[cardID] = lambdaVals
+    return cardLambdas
+
+def lambdaFn(history):
     # cardDict = tools.make_cardDict(history)
-    return 1e9
+    return 1.
 
-def predict_performance_maths(TSLE, POLE, tau):
-    return POLE * math.e ** (-TSLE / tau)
+def predict_performance_maths(TSLE, POLE, lambdaVal):
+    return POLE * math.e ** (-TSLE * lambdaVal)
 
 def predict_performance(cardID, history):
-    cardHistory = history.cardHistories[cardID]
+    cardHistory = history.card_histories[cardID]
     if cardHistory is None:
         return 0
     TOLE, POLE = cardHistory[-1]
@@ -42,7 +50,7 @@ def predict_performance(cardID, history):
     pred_performance = predict_performance_maths(
         TSLE,
         POLE,
-        tauFn(history)
+        lambdaFn(history)
         )
     return pred_performance
 

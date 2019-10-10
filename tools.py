@@ -1,3 +1,10 @@
+import hashlib
+
+def hashID(card):
+    cardstring = ''.join(card[:2])
+    cardID = int(hashlib.sha256(cardstring.encode('utf-8')).hexdigest(), 16)
+    return cardID
+
 def make_cardHistories(history):
     cardDict = {}
     for unixtime, cardID, score in history:

@@ -2,13 +2,16 @@ import time
 import pickle
 import os
 import random
-import hashlib
 import sys
 import os
 import json
 import csv
+import math
 
 from . import tools
+from . import analysis
+from . import selector
+from . import history
 
 scriptPath = os.path.abspath(os.path.dirname(__file__))
 
@@ -35,11 +38,6 @@ graphicsDict['quit'] = """\n\n           __..--''``\--....___   _..,_ \n       _
 graphicsDict['star'] = "\n" +"""\n       ,    """+"""\n    \  :  /    """+"""\n `. __/ \__ .'    """+"""\n _ _\     /_ _    """+"""\n    /_   _\    """+"""\n  .'  \ /  `.    """+"""\n    /  :  \    hjw    """+"""\n       '    """+"""\n"""
 graphicsDict['trophy'] = "\n" +"""\n             ___________"""+"""\n            '._==_==_=_.'"""+"""\n            .-\:      /-."""+"""\n           | (|:.     |) |"""+"""\n            '-|:.     |-'"""+"""\n              \::.    /"""+"""\n               '::. .'"""+"""\n                 ) ("""+"""\n               _.' '._"""+'''\n          jgs `"""""""`'''+"""\n"""
 graphics = lambda key: print(graphicsDict[key])
-
-def hashID(card):
-    cardstring = ''.join(card[:2])
-    cardID = int(hashlib.sha256(cardstring.encode('utf-8')).hexdigest(), 16)
-    return cardID
 
 def load_deck(name, loadPath = '.'):
     extension = os.path.splitext(name)[1]
@@ -106,20 +104,6 @@ def load_game(deck, username, loaddir = '.', name = None):
     game = Game(deck, username, _loadmem = memory)
     return game
 
-class History:
-
-    def __init__(
-            self,
-            data = []
-            ):
-
-        self.data = data
-
-        self.update()
-
-    def update(self):
-        self.cardHistories = tools.make_cardHistories(self.data)
-
 class Game:
 
     def __init__(
@@ -139,8 +123,10 @@ class Game:
             self._standard_init(**kwargs)
         else:
             self._load(_loadmem)
-        self.history = History(self.memory['history'])
+        self.history = history.History(self.memory['history'])
         self.options = self.memory['options']
+
+        self.selector = selector.Selector(self.deck, self.history)
 
         self._update_attributes()
 
@@ -196,17 +182,21 @@ class Game:
     def _update_attributes(self):
         pass
 
-    def _update_history(self, card, outcome):
-        cardID = hashID(card)
-        performance = 0
+    def _process_outcome(self, outcome):
         if outcome is None:
-            performance = 0
-        elif outcome < 1:
-            performance = 1
-        elif outcome > 10:
-            performance = 0
+            performance = 0.
         else:
-            performance = 10 - outcome
+            outcome = max(0., outcome - 1.)
+            outcome_power = math.log2(outcome + 1.)
+            if outcome_power > 3.:
+                performance = 0.
+            else:
+                performance = round(1. - (outcome_power / 3.), 2)
+        return performance
+
+    def _update_history(self, card, outcome):
+        cardID = tools.hashID(card)
+        performance = self._process_outcome(outcome)
         new_entry = (round(time.time()), cardID, performance)
         self.history.data.append(new_entry)
         self.memory['history'] = self.history.data
@@ -258,8 +248,8 @@ class Game:
                 graphics('star')
                 self._message("Correct!")
                 self._message(extra)
-                timelapsed = round(time.time() - starttime)
-                if timelapsed >= 10:
+                timelapsed = time.time() - starttime
+                if self._process_outcome(timelapsed) == 0.:
                     self._message("Too slow.")
                     return self.tutorial(card)
                 return timelapsed
@@ -273,11 +263,8 @@ class Game:
             else:
                 self._message("Try again.")
 
-    def choose_random_card(self):
-        return random.choice(self.deck)
-
     def choose_card(self):
-        return self.choose_random_card()
+        return self.selector.select()
 
     def report(self):
         self._message("Nothing to report")
