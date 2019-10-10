@@ -8,6 +8,8 @@ import os
 import json
 import csv
 
+from . import tools
+
 scriptPath = os.path.abspath(os.path.dirname(__file__))
 
 def start_game(deckName, deckPath = '.', savePath = '.', username = 'anonymous'):
@@ -35,8 +37,8 @@ graphicsDict['trophy'] = "\n" +"""\n             ___________"""+"""\n           
 graphics = lambda key: print(graphicsDict[key])
 
 def hashID(card):
-    cardstring = ''.join(card)
-    cardID = int(hashlib.sha256(cardstring.encode('utf-8')).hexdigest(), 16) % 10**8
+    cardstring = ''.join(card[:2])
+    cardID = int(hashlib.sha256(cardstring.encode('utf-8')).hexdigest(), 16)
     return cardID
 
 def load_deck(name, loadPath = '.'):
@@ -71,7 +73,8 @@ def load_deck_csv(name, loadPath = '.'):
                 header = row
             else:
                 data.append(row)
-    data = [tuple(row) for row in data]
+    date = [row.append('') for row in data if len(row) == 2]
+    data = [tuple(row[0:3]) for row in data]
     headerDict = {
         'name': header[0],
         'question_prompt': header[1],
@@ -79,6 +82,12 @@ def load_deck_csv(name, loadPath = '.'):
         }
     deck = (headerDict, data)
     return deck
+
+def load_memory(name, path):
+    filepath = os.path.join(path, name)
+    with open(filepath, 'rb') as file:
+        memory = pickle.load(file)
+    return memory
 
 def load_game(deck, username, loaddir = '.', name = None):
     if name is None:
@@ -93,11 +102,23 @@ def load_game(deck, username, loaddir = '.', name = None):
         filename = list(sorted(filenames))[-1] # i.e. load latest
     else:
         filename = name
-    filepath = os.path.join(loaddir, filename)
-    with open(filepath, 'rb') as file:
-        memory = pickle.load(file)
+    memory = load_memory(filename, loaddir)
     game = Game(deck, username, _loadmem = memory)
     return game
+
+class History:
+
+    def __init__(
+            self,
+            data = []
+            ):
+
+        self.data = data
+
+        self.update()
+
+    def update(self):
+        self.cardHistories = tools.make_cardHistories(self.data)
 
 class Game:
 
@@ -118,45 +139,33 @@ class Game:
             self._standard_init(**kwargs)
         else:
             self._load(_loadmem)
-        for key, val in self.options.items():
-            setattr(self, key, val)
+        self.history = History(self.memory['history'])
+        self.options = self.memory['options']
 
-        # !!! PLACEHOLDER !!!
-        self.extra = {card: None for card in self.deck}
+        self._update_attributes()
 
     def _standard_init(self, **kwargs):
 
-        self.options = {
-            'target_MATTR': 5.,
-            'initial_cards': 10,
-            'new_cards_at_a_time': 5,
-            'recency_limit': 5,
-            'random': True,
-            'attempts_permitted': 2,
+        options = {
+            'attempts_permitted': 2
             }
 
-        self.options.update(
+        options.update(
             {key: kwargs[key] for key in \
-            set(self.options).intersection(set(kwargs))}
+            set(options).intersection(set(kwargs))}
             )
-        for key, val in self.options.items():
-            setattr(self, key, val)
-
-        self.history = []
 
         self.memory = {
-            'options': self.options,
-            'history': self.history
+            'options': options,
+            'history': []
             }
 
     def _load(self, _loadmem):
         self.memory = _loadmem
-        for key, val in self.memory.items():
-            setattr(self, key, val)
 
     def save(self, name = None, outputPath = None):
         self._message("Saving...")
-        time_str = str(time.time())[:-8]
+        time_str = str(round(time.time()))
         if name is None:
             name = self.username \
                 + '_' + self.header['name'] \
@@ -174,21 +183,38 @@ class Game:
 
     def _get_info(self, card, qtype = 'question'):
 
-        question, answer = card
+        question, answer, extra = card
         if qtype == 'question':
             prompt = self.header['question_prompt']
         elif qtype == 'tutorial':
             prompt = self.header['tutorial_prompt']
         else:
             prompt = "No prompt!"
-        extra = self.extra[card]
 
         return question, answer, prompt, extra
 
+    def _update_attributes(self):
+        pass
+
     def _update_history(self, card, outcome):
         cardID = hashID(card)
-        new_entry = (round(time.time()), cardID, outcome)
-        self.history.append(new_entry)
+        performance = 0
+        if outcome is None:
+            performance = 0
+        elif outcome < 1:
+            performance = 1
+        elif outcome > 10:
+            performance = 0
+        else:
+            performance = 10 - outcome
+        new_entry = (round(time.time()), cardID, performance)
+        self.history.data.append(new_entry)
+        self.memory['history'] = self.history.data
+        self.history.update()
+
+    def _update(self, card, outcome):
+        self._update_history(card, outcome)
+        self._update_attributes()
 
     def tutorial(self, card):
         self._message("\n")
@@ -197,6 +223,7 @@ class Game:
             card,
             qtype = 'tutorial'
             )
+        self._message(extra)
         self._message(prompt)
         self._message(question)
         self._message(answer)
@@ -230,14 +257,16 @@ class Game:
             elif response == answer:
                 graphics('star')
                 self._message("Correct!")
-                if not extra is None:
-                    self._message(extra)
+                self._message(extra)
                 timelapsed = round(time.time() - starttime)
+                if timelapsed >= 10:
+                    self._message("Too slow.")
+                    return self.tutorial(card)
                 return timelapsed
             elif response == "":
                 self._message("Passed.")
                 return self.tutorial(card)
-            elif not attempts < self.attempts_permitted:
+            elif not attempts < self.options['attempts_permitted']:
                 graphics('downer')
                 self._message("Incorrect.")
                 return self.tutorial(card)
@@ -249,7 +278,7 @@ class Game:
 
     def choose_card(self):
         return self.choose_random_card()
-    
+
     def report(self):
         self._message("Nothing to report")
 
@@ -262,7 +291,7 @@ class Game:
             if outcome == 'exit':
                 break
             else:
-                self._update_history(card, outcome) 
+                self._update(card, outcome)
         self.save()
         graphics('quit')
         self._message("Rest up - you've earned it!")
