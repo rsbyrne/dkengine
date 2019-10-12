@@ -10,7 +10,7 @@ present_time = lambda: round(time.time())
 def observe_lambda(startTime, endTime, endPerf):
     endPerf = max(1e-9, endPerf)
     t_interval = endTime - startTime
-    lambdaVal = -math.log(max(1e-9, endPerf)) / t_interval
+    lambdaVal = -math.log(endPerf) / t_interval
     return lambdaVal
 
 def observe_lambda_card(history, cardID, index):

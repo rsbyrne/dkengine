@@ -41,7 +41,6 @@ graphics = lambda key: print(graphicsDict[key])
 
 def load_deck(name, loadPath = '.'):
     extension = os.path.splitext(name)[1]
-    print(name, loadPath, extension)
     if extension == '.json':
         return load_deck_json(name, loadPath)
     elif extension == '.csv':
@@ -186,7 +185,7 @@ class Game:
         if outcome is None:
             performance = 0.
         else:
-            outcome = max(0., outcome - 1.)
+            outcome = max(0., outcome - 2.)
             outcome_power = math.log2(outcome + 1.)
             if outcome_power > 3.:
                 performance = 0.
