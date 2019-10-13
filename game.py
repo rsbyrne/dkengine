@@ -24,10 +24,10 @@ def start_game(deckName, deckPath = '.', savePath = '.', username = 'anonymous')
             save_found = True
     if save_found:
         gameObj = load_game(deck, username, savePath)
-        gameObj._message("Loaded " + deckName + " as " + username)
+        gameObj.message("Loaded " + deckName + " as " + username)
     else:
         gameObj = Game(deck, username, savePath = savePath)
-        gameObj._message("Started " + deckName + " as " + username)
+        gameObj.message("Started " + deckName + " as " + username)
     gameObj.start_session()
 
 graphicsDict = {}
@@ -149,7 +149,7 @@ class Game:
         self.memory = _loadmem
 
     def save(self, name = None, outputPath = None):
-        self._message("Saving...")
+        self.message("Saving...")
         time_str = str(round(time.time()))
         if name is None:
             name = self.username \
@@ -161,10 +161,13 @@ class Game:
         filename = os.path.join(outputPath, name + extension)
         with open(filename, 'wb') as f:
             pickle.dump(self.memory, f, pickle.HIGHEST_PROTOCOL)
-        self._message("Saved!")
+        self.message("Saved!")
 
-    def _message(self, text):
+    def message(self, text):
         print(text)
+
+    def graphics(self, key):
+        self.message(graphicsDict[key])
 
     def _get_info(self, card, qtype = 'question'):
 
@@ -201,42 +204,42 @@ class Game:
         self.memory['history'] = self.history.data
         self.history.update()
 
-    def _update(self, card, outcome):
+    def update(self, card, outcome):
         self._update_history(card, outcome)
         self._update_attributes()
 
     def tutorial(self, card):
-        self._message("\n")
-        self._message("TUTORIAL")
+        self.message("\n")
+        self.message("TUTORIAL")
         question, answer, prompt, extra = self._get_info(
             card,
             qtype = 'tutorial'
             )
-        self._message(extra)
-        self._message(prompt)
-        self._message(question)
-        self._message(answer)
+        self.message(extra)
+        self.message(prompt)
+        self.message(question)
+        self.message(answer)
         while True:
             response = input("Practice: ")
             if response == "exit" or response == "report":
                 return response
             else:
                 if response == answer:
-                    graphics('star')
-                    self._message("Gold star!")
+                    self.graphics('star')
+                    self.message("Gold star!")
                     outcome = None
                     return outcome
                 else:
-                    self._message("Try again.")
+                    self.message("Try again.")
 
     def question(self, card):
-        self._message("\n")
-        self._message("QUESTION")
+        self.message("\n")
+        self.message("QUESTION")
         question, answer, prompt, extra = self._get_info(card)
         starttime = time.time()
         attempts = 0
-        self._message(prompt)
-        self._message(question)
+        self.message(prompt)
+        self.message(question)
         while True:
             response = input("Answer: ")
             if response == "exit":
@@ -244,40 +247,43 @@ class Game:
             elif response == "report":
                 self.report()
             elif response == answer:
-                graphics('star')
-                self._message("Correct!")
-                self._message(extra)
+                self.graphics('star')
+                self.message("Correct!")
+                self.message(extra)
                 timelapsed = time.time() - starttime
                 if self._process_outcome(timelapsed) == 0.:
-                    self._message("Too slow.")
+                    self.message("Too slow.")
                     return self.tutorial(card)
                 return timelapsed
             elif response == "":
-                self._message("Passed.")
+                self.message("Passed.")
                 return self.tutorial(card)
             elif not attempts < self.options['attempts_permitted']:
-                graphics('downer')
-                self._message("Incorrect.")
+                self.graphics('downer')
+                self.message("Incorrect.")
                 return self.tutorial(card)
             else:
-                self._message("Try again.")
+                self.message("Try again.")
 
-    def choose_card(self):
+    def get_card(self):
         return self.selector.select()
 
     def report(self):
-        self._message("Nothing to report")
+        self.message("Nothing to report")
 
     def start_session(self):
-        self._message("Play fair and have fun!")
-        graphics('start')
+        self.message("Play fair and have fun!")
+        self.graphics('start')
         while True:
-            card = self.choose_card()
+            card = self.get_card()
+            if not tools.hashID(card) in self.history.past_cards:
+                self.graphics('trophy')
+                self.message('New card unlocked!')
             outcome = self.question(card)
             if outcome == 'exit':
                 break
             else:
-                self._update(card, outcome)
+                self.update(card, outcome)
         self.save()
-        graphics('quit')
-        self._message("Rest up - you've earned it!")
+        self.graphics('quit')
+        self.message("Rest up - you've earned it!")

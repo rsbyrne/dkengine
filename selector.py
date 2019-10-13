@@ -1,6 +1,7 @@
 import random
 
 from . import tools
+from . import assessor
 
 def cointoss():
     random.seed()
@@ -18,9 +19,20 @@ class Selector:
             tools.hashID(card): card \
                 for card in self.deck
             }
+        self.assessor = assessor.Assessor(self.history)
+        self.update()
 
     def update(self):
-        pass
+        self.unseen_cards = [
+            card \
+                for card in self.cardIDs.keys() \
+                    if not card in self.history.past_cards
+            ]
+        self.legit_past_cards = [
+            card \
+                for card in self.history.past_cards \
+                    if not card in self.history.get_last(5)
+            ]
 
     def retrieve_random_card(self, cardList = None):
         if cardList is None:
@@ -35,26 +47,19 @@ class Selector:
         return random.choice(cardList)
 
     def retrieve_random_past_card(self):
-        legit_past_cards = [
-            card \
-                for card in self.history.past_cards \
-                    if not card in self.history.get_last(5)
-            ]
-        if len(legit_past_cards) > 0:
+        if len(self.legit_past_cards) > 0:
             print("Choosing random card from past cards.")
-            return self.retrieve_random_card(legit_past_cards)
+            return self.retrieve_random_card(self.legit_past_cards)
         else:
             return self.retrieve_random_card()
 
+    def new_card_condition(self):
+        return self.assessor.assess() > 0.5
+
     def retrieve_new_card(self):
-        unseen_cards = [
-            card \
-                for card in self.cardIDs.keys() \
-                    if not card in self.history.past_cards
-            ]
-        if len(unseen_cards) > 0:
+        if len(self.unseen_cards) > 0:
             print("Choosing random card from unseen cards.")
-            return self.retrieve_random_card(unseen_cards)
+            return self.retrieve_random_card(self.unseen_cards)
         else:
             return self.retrieve_random_card()
 
@@ -75,18 +80,14 @@ class Selector:
         else:
             return self.retrieve_random_past_card()
 
-    def new_card_condition(self):
-        return all(cointosses(3))
-
     def _select(self):
         self.update()
         if self.new_card_condition():
             return self.retrieve_new_card()
+        elif cointoss():
+            return self.retrieve_worst_lambda()
         else:
-            if cointoss():
-                return self.retrieve_worst_lambda()
-            else:
-                return self.retrieve_random_past_card()
+            return self.retrieve_random_past_card()
 
     def select(self):
         selectedID = self._select()
