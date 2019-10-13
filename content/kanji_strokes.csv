@@ -1,4 +1,4 @@
-name=kanji_strokes,question_instruction=How many strokes in the kanji for:,tutorial_instruction="Draw the figure in your mind, then type the number of strokes to help you remember:",ordered=True,reversible=False
+name=kanji_strokes,question_instruction=How many strokes in the kanji for:,tutorial_instruction=Draw the figure in your mind then type the number of strokes to help you remember:,ordered=True,reversible=False
 repetition marker,4,々,Repetition Marker,,カイ    こ.う    ,This character is used to indicate repetition of a previous character.
 one,1,一,One,イチ　　イツ,ひと・つ　　ひと,"The number ONE is laid on its side. As a primitive, it takes on the meaning of *floor' or *ceiling."
 two,2,二,Two,ニ,ふた・つ　　ふた,The Roman numeral for TWO on its side - one on top of the other.
