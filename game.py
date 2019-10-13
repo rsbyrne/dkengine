@@ -183,14 +183,13 @@ class Game:
         self.message("\n")
         self.message("QUESTION")
         question, answer, instruction, extra = self._get_info(card)
+        reversed = False
         if self.reversible:
             if selector.cointoss():
                 oldquestion, oldanswer = question, answer
                 question = oldanswer
                 answer = oldquestion
                 reversed = True
-        else:
-            reversed = False
         starttime = time.time()
         attempts = 0
         self.message(instruction)
