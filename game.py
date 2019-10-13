@@ -1,22 +1,17 @@
 import time
 import pickle
 import os
-import random
-import sys
-import os
-import json
-import csv
 import math
 
 from . import tools
-from . import analysis
 from . import selector
 from . import history
+from . import load
 
 scriptPath = os.path.abspath(os.path.dirname(__file__))
 
 def start_game(deckName, deckPath = '.', savePath = '.', username = 'anonymous'):
-    deck = load_deck(deckName, deckPath)
+    deck = load.load_deck(deckName, deckPath)
     saveFiles = [file for file in os.listdir(savePath) if os.path.splitext(file)[1] == '.pkl']
     save_found = False
     for file in saveFiles:
@@ -30,6 +25,10 @@ def start_game(deckName, deckPath = '.', savePath = '.', username = 'anonymous')
         gameObj.message("Started " + deckName + " as " + username)
     gameObj.start_session()
 
+def load_game(*args, **kwargs)):
+    deck, username, memory = load._load_game(*args, **kwargs)
+    return Game(deck, username, _loadmem = memory)
+
 graphicsDict = {}
 graphicsDict['start'] = "\n" + '''\n       \`*-.                    \n        )  _`-.                 \n       .  : `. .                \n       : _   '  \               \n       ; *` _.   `*-._          \n       `-.-'          `-.       \n         ;       `       `.     \n         :.       .        \    \n         . \  .   :   .-'   .   \n         '  `+.;  ;  '      :   \n         :  '  |    ;       ;-. \n         ; '   : :`-:     _.`* ;\n[bug] .*' /  .*' ; .*`- +'  `*' \n      `*-*   `*-*  `*-*'\n    '''
 graphicsDict['celebration'] = "\n" +"""\n                                   .''.       """+"""\n       .''.      .        *''*    :_\/_:     . """+"""\n      :_\/_:   _\(/_  .:.*_\/_*   : /\ :  .'.:.'."""+"""\n  .''.: /\ :   ./)\   ':'* /\ * :  '..'.  -=:o:=-"""+"""\n :_\/_:'.:::.    ' *''*    * '.\'/.' _\(/_'.':'.'"""+"""\n : /\ : :::::     *_\/_*     -= o =-  /)\    '  *"""+"""\n  '..'  ':::'     * /\ *     .'/.\'.   '"""+"""\n      *            *..*         :"""+"""\njgs     *"""+"""\n        *"""+"""\n"""
@@ -38,70 +37,6 @@ graphicsDict['quit'] = """\n\n           __..--''``\--....___   _..,_ \n       _
 graphicsDict['star'] = "\n" +"""\n       ,    """+"""\n    \  :  /    """+"""\n `. __/ \__ .'    """+"""\n _ _\     /_ _    """+"""\n    /_   _\    """+"""\n  .'  \ /  `.    """+"""\n    /  :  \    hjw    """+"""\n       '    """+"""\n"""
 graphicsDict['trophy'] = "\n" +"""\n             ___________"""+"""\n            '._==_==_=_.'"""+"""\n            .-\:      /-."""+"""\n           | (|:.     |) |"""+"""\n            '-|:.     |-'"""+"""\n              \::.    /"""+"""\n               '::. .'"""+"""\n                 ) ("""+"""\n               _.' '._"""+'''\n          jgs `"""""""`'''+"""\n"""
 graphics = lambda key: print(graphicsDict[key])
-
-def load_deck(name, loadPath = '.'):
-    extension = os.path.splitext(name)[1]
-    if extension == '.json':
-        return load_deck_json(name, loadPath)
-    elif extension == '.csv':
-        return load_deck_csv(name, loadPath)
-    elif extension == '' and loadPath == '.':
-        loadDir = os.path.join(scriptPath, 'content')
-        return load_deck_csv(name + '.csv', loadDir)
-    else:
-        raise Exception
-
-def load_deck_json(name, loadPath = '.'):
-    filePath = os.path.join(loadPath, name)
-    with open(filePath, 'r') as file:
-        deck = json.load(file)
-    deck = tuple(deck)
-    for index, row in enumerate(deck[1]):
-        deck[1][index] = tuple(row)
-    return deck
-
-def load_deck_csv(name, loadPath = '.'):
-    filePath = os.path.join(loadPath, name)
-    data = []
-    with open(filePath, 'r', newline = '') as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter = ',')
-        for i, row in enumerate(csv_reader):
-            if i == 0:
-                header = row
-            else:
-                data.append(row)
-    date = [row.append('') for row in data if len(row) == 2]
-    data = [tuple(row[0:3]) for row in data]
-    headerDict = {
-        'name': header[0],
-        'question_prompt': header[1],
-        'tutorial_prompt': header[2]
-        }
-    deck = (headerDict, data)
-    return deck
-
-def load_memory(name, path):
-    filepath = os.path.join(path, name)
-    with open(filepath, 'rb') as file:
-        memory = pickle.load(file)
-    return memory
-
-def load_game(deck, username, loaddir = '.', name = None):
-    if name is None:
-        header, cards = deck
-        filenameroot = username + '_' + header['name']
-        filenames = [
-            name for name in os.listdir(loaddir) \
-            if filenameroot in name
-            ]
-        assert len(filenames), \
-            "No save file found for this deck and user."
-        filename = list(sorted(filenames))[-1] # i.e. load latest
-    else:
-        filename = name
-    memory = load_memory(filename, loaddir)
-    game = Game(deck, username, _loadmem = memory)
-    return game
 
 class Game:
 
