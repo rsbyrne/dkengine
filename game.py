@@ -8,8 +8,10 @@ from . import selector
 from . import history
 from . import load
 
-def start_game(deckName, deckPath = '.', savePath = '.', username = 'anonymous'):
+def start_game(deckName, deckPath = '.', savePath = 'saves', username = 'anonymous'):
     deck = load.load_deck(deckName, deckPath)
+    if not os.path.isdir(savePath):
+        os.mkdir(savePath)
     saveFiles = [file for file in os.listdir(savePath) if os.path.splitext(file)[1] == '.pkl']
     save_found = False
     for file in saveFiles:
