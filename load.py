@@ -2,6 +2,9 @@ import os
 import csv
 import pickle
 import json
+import codecs
+
+scriptPath = os.path.abspath(os.path.dirname(__file__))
 
 def load_deck(name, loadPath = '.'):
     extension = os.path.splitext(name)[1]
@@ -27,7 +30,8 @@ def load_deck_json(name, loadPath = '.'):
 def load_deck_csv(name, loadPath = '.'):
     filePath = os.path.join(loadPath, name)
     data = []
-    with open(filePath, 'r', newline = '') as csv_file:
+    # with open(filePath, 'r', newline = '') as csv_file:
+    with codecs.open(filePath, 'r', 'utf-8') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter = ',')
         for i, row in enumerate(csv_reader):
             if i == 0:
@@ -36,21 +40,20 @@ def load_deck_csv(name, loadPath = '.'):
                 data.append(row)
     data = process_data(data)
     headerDict = {
-        'name': header[0],
-        'question_prompt': header[1],
-        'tutorial_prompt': header[2]
+        key: val \
+            for key, val in [entry.split('=') for entry in header]
         }
     deck = (headerDict, data)
     return deck
 
-def process_data(deck):
+def process_data(data):
     processed = []
-    for row in deck:
+    for row in data:
         newrow = []
-        newrow.append(deck[0]) # prompts
-        newrow.append(deck[1]) # responses
-        if len(newrow) > 2: # extras
-            extras = '\n'.join(newrow[2:])
+        newrow.append(row[0]) # prompts
+        newrow.append(row[1]) # responses
+        if len(row) > 2: # extras
+            extras = '\n'.join(row[2:])
             newrow.append(extras)
         else:
             newrow.append('')

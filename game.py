@@ -8,8 +8,6 @@ from . import selector
 from . import history
 from . import load
 
-scriptPath = os.path.abspath(os.path.dirname(__file__))
-
 def start_game(deckName, deckPath = '.', savePath = '.', username = 'anonymous'):
     deck = load.load_deck(deckName, deckPath)
     saveFiles = [file for file in os.listdir(savePath) if os.path.splitext(file)[1] == '.pkl']
@@ -25,7 +23,7 @@ def start_game(deckName, deckPath = '.', savePath = '.', username = 'anonymous')
         gameObj.message("Started " + deckName + " as " + username)
     gameObj.start_session()
 
-def load_game(*args, **kwargs)):
+def load_game(*args, **kwargs):
     deck, username, memory = load._load_game(*args, **kwargs)
     return Game(deck, username, _loadmem = memory)
 
@@ -60,7 +58,15 @@ class Game:
         self.history = history.History(self.memory['history'])
         self.options = self.memory['options']
 
-        self.selector = selector.Selector(self.deck, self.history)
+        self.ordered = self.header['ordered'] == 'True'
+        self.reversible = self.header['reversible'] == 'True'
+
+        self.selector = selector.Selector(
+            self.deck,
+            self.history,
+            ordered = self.ordered
+            )
+
 
         self._update_attributes()
 
@@ -108,13 +114,13 @@ class Game:
 
         question, answer, extra = card
         if qtype == 'question':
-            prompt = self.header['question_prompt']
+            instruction = self.header['question_instruction']
         elif qtype == 'tutorial':
-            prompt = self.header['tutorial_prompt']
+            instruction = self.header['tutorial_instruction']
         else:
-            prompt = "No prompt!"
+            instruction = ""
 
-        return question, answer, prompt, extra
+        return question, answer, instruction, extra
 
     def _update_attributes(self):
         pass
@@ -143,19 +149,23 @@ class Game:
         self._update_history(card, outcome)
         self._update_attributes()
 
-    def tutorial(self, card):
+    def tutorial(self, card, reversed = False):
         self.message("\n")
         self.message("TUTORIAL")
-        question, answer, prompt, extra = self._get_info(
+        question, answer, instruction, extra = self._get_info(
             card,
             qtype = 'tutorial'
             )
+        if reversed:
+            oldquestion, oldanswer = question, answer
+            question = oldanswer
+            answer = oldquestion
         self.message(extra)
-        self.message(prompt)
+        self.message(instruction)
         self.message(question)
         self.message(answer)
         while True:
-            response = input("Practice: ")
+            response = input("Practice:\n")
             if response == "exit" or response == "report":
                 return response
             else:
@@ -170,33 +180,41 @@ class Game:
     def question(self, card):
         self.message("\n")
         self.message("QUESTION")
-        question, answer, prompt, extra = self._get_info(card)
+        question, answer, instruction, extra = self._get_info(card)
+        if self.reversible:
+            if selector.cointoss():
+                oldquestion, oldanswer = question, answer
+                question = oldanswer
+                answer = oldquestion
+                reversed = True
+        else:
+            reversed = False
         starttime = time.time()
         attempts = 0
-        self.message(prompt)
+        self.message(instruction)
         self.message(question)
         while True:
-            response = input("Answer: ")
+            response = input("Answer:\n")
             if response == "exit":
                 return response
             elif response == "report":
                 self.report()
             elif response == answer:
-                self.graphics('star')
-                self.message("Correct!")
-                self.message(extra)
                 timelapsed = time.time() - starttime
                 if self._process_outcome(timelapsed) == 0.:
                     self.message("Too slow.")
-                    return self.tutorial(card)
+                    return self.tutorial(card, reversed)
+                self.graphics('star')
+                self.message("Correct!")
+                self.message(extra)
                 return timelapsed
             elif response == "":
                 self.message("Passed.")
-                return self.tutorial(card)
+                return self.tutorial(card, reversed)
             elif not attempts < self.options['attempts_permitted']:
                 self.graphics('downer')
                 self.message("Incorrect.")
-                return self.tutorial(card)
+                return self.tutorial(card, reversed)
             else:
                 self.message("Try again.")
 
@@ -206,19 +224,30 @@ class Game:
     def report(self):
         self.message("Nothing to report")
 
-    def start_session(self):
-        self.message("Play fair and have fun!")
-        self.graphics('start')
-        while True:
-            card = self.get_card()
-            if not tools.hashID(card) in self.history.past_cards:
-                self.graphics('trophy')
-                self.message('New card unlocked!')
+    def question_loop(self):
+        card = self.get_card()
+        if not tools.hashID(card) in self.history.past_cards:
+            self.graphics('trophy')
+            self.message('New card unlocked!')
+            outcome = self.tutorial(card)
+        else:
             outcome = self.question(card)
-            if outcome == 'exit':
+        if outcome == 'exit':
+            return "exit"
+        else:
+            self.update(card, outcome)
+            return "continue"
+
+    def start_session(self):
+        self.message("Welcome back " + self.username + '!')
+        self.graphics('start')
+        status = 'continue'
+        while status == 'continue':
+            status = input("Press enter to continue or type 'exit' to exit.\n")
+            if status == 'exit':
                 break
             else:
-                self.update(card, outcome)
+                status = self.question_loop()
         self.save()
         self.graphics('quit')
-        self.message("Rest up - you've earned it!")
+        self.message("Have a break - have a kit kat.")

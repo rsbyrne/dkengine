@@ -6,7 +6,7 @@ class Assessor:
     def last_x_av(self, x):
         sliceLen = min(x, len(self.history.data))
         if sliceLen == 0:
-            return 0.
+            return 1.
         else:
             sliceData = [row[2] for row in self.history.data[-sliceLen:]]
             average = sum(sliceData) / sliceLen
