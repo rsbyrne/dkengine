@@ -45,7 +45,7 @@ class Game:
             deck = None,
             username = 'default',
             _loadmem = None,
-            savePath = '.',
+            savePath = 'saves',
             **kwargs
             ):
 
