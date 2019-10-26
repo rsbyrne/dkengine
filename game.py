@@ -51,7 +51,7 @@ class Game:
 
         self.username = username
         self.savePath = savePath
-        self.header, self.deck = deck
+        self.superHeader, self.header, self.deck = deck
 
         if _loadmem is None:
             self._standard_init(**kwargs)
@@ -60,8 +60,8 @@ class Game:
         self.history = history.History(self.memory['history'])
         self.options = self.memory['options']
 
-        self.ordered = self.header['ordered'] == 'True'
-        self.reversible = self.header['reversible'] == 'True'
+        self.ordered = self.superHeader['ordered'] == 'True'
+        self.reversible = self.superHeader['reversible'] == 'True'
 
         self.selector = selector.Selector(
             self.deck,
@@ -75,7 +75,6 @@ class Game:
     def _standard_init(self, **kwargs):
 
         options = {
-            'attempts_permitted': 2
             }
 
         options.update(
@@ -96,7 +95,7 @@ class Game:
         time_str = str(round(time.time()))
         if name is None:
             name = self.username \
-                + '_' + self.header['name'] \
+                + '_' + self.superHeader['name'] \
                 + '_' + time_str
         extension = '.pkl'
         if outputPath is None:
@@ -114,24 +113,25 @@ class Game:
 
     def _get_info(self, card, qtype = 'question'):
 
-        question, answer, extra = card
+        context, prompt, response, hook, pretag, cotag, tutorial, extra = card
         if qtype == 'question':
-            instruction = self.header['question_instruction']
+            instruction = context
         elif qtype == 'tutorial':
-            instruction = self.header['tutorial_instruction']
+            instruction = tutorial
         else:
             instruction = ""
 
-        return question, answer, instruction, extra
+        return prompt, response, hook, instruction, extra
 
     def _update_attributes(self):
         pass
 
     def _process_outcome(self, outcome):
+        grace_time = 3.
         if outcome is None:
             performance = 0.
         else:
-            outcome = max(0., outcome - 2.)
+            outcome = max(0., outcome - grace_time)
             outcome_power = math.log2(outcome + 1.)
             if outcome_power > 3.:
                 performance = 0.
@@ -151,10 +151,18 @@ class Game:
         self._update_history(card, outcome)
         self._update_attributes()
 
+    def countdown(self, secs):
+        self.message('x')
+        time.sleep(secs)
+        self.message('>')
+        # for sec in list(range(int(secs)))[::-1]:
+        #     self.message('.')
+        #     time.sleep(1)
+
     def tutorial(self, card, reversed = False):
         self.message("\n")
         self.message("TUTORIAL")
-        question, answer, instruction, extra = self._get_info(
+        question, answer, hook, instruction, extra = self._get_info(
             card,
             qtype = 'tutorial'
             )
@@ -162,12 +170,25 @@ class Game:
             oldquestion, oldanswer = question, answer
             question = oldanswer
             answer = oldquestion
-        self.message(extra)
-        self.message(instruction)
         self.message(question)
         self.message(answer)
+        self.message(hook)
+        self.message(extra)
+        self.countdown(3)
+        self.message(instruction)
         while True:
-            response = input("Practice:\n")
+            self.message("Prompt: " + question)
+            response = input("Type the prompt:\n")
+            if response == "exit" or response == "report":
+                return response
+            else:
+                if response == question:
+                    break
+                else:
+                    self.message("Try again.")
+        while True:
+            self.message("Response: " + answer)
+            response = input("Now type the response:\n")
             if response == "exit" or response == "report":
                 return response
             else:
@@ -182,7 +203,7 @@ class Game:
     def question(self, card):
         self.message("\n")
         self.message("QUESTION")
-        question, answer, instruction, extra = self._get_info(card)
+        question, answer, hook, instruction, extra = self._get_info(card)
         reversed = False
         if self.reversible:
             if selector.cointoss():
@@ -209,15 +230,20 @@ class Game:
                 self.message("Correct!")
                 self.message(extra)
                 return timelapsed
-            elif response == "":
-                self.message("Passed.")
-                return self.tutorial(card, reversed)
-            elif not attempts < self.options['attempts_permitted']:
-                self.graphics('downer')
-                self.message("Incorrect.")
-                return self.tutorial(card, reversed)
+            elif attempts == 0:
+                self.message(hook)
+                self.message("Have a think...")
+                self.countdown(3)
+            elif attempts > 0:
+                if response == "":
+                    self.message("Passed.")
+                    return self.tutorial(card, reversed)
+                else:
+                    self.graphics('downer')
+                    self.message("Incorrect.")
+                    return self.tutorial(card, reversed)
             else:
-                self.message("Try again.")
+                raise Exception
 
     def get_card(self):
         return self.selector.select()

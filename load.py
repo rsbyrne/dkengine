@@ -35,28 +35,38 @@ def load_deck_csv(name, loadPath = '.'):
         csv_reader = csv.reader(csv_file, delimiter = ',')
         for i, row in enumerate(csv_reader):
             if i == 0:
+                superHeader = row
+            elif i == 1:
                 header = row
             else:
                 data.append(row)
-    data = process_data(data)
-    headerDict = {
+    superHeaderDict = {
         key: val \
-            for key, val in [entry.split('=') for entry in header]
+            for key, val in [
+                entry.split('=') \
+                    for entry in superHeader \
+                        if len(entry) > 0
+                ]
         }
-    deck = (headerDict, data)
+    data = process_data(data, header, superHeaderDict)
+    deck = (superHeaderDict, header, data)
     return deck
 
-def process_data(data):
+def process_data(data, header, superHeader):
     processed = []
     for row in data:
+        rowDict = {key: val for key, val in zip(header, row)}
         newrow = []
-        newrow.append(row[0]) # prompts
-        newrow.append(row[1]) # responses
-        if len(row) > 2: # extras
-            extras = '\n'.join(row[2:])
-            newrow.append(extras)
-        else:
-            newrow.append('')
+        newrow.append(superHeader['context'])
+        for key in ['prompt', 'response', 'hook', 'pretags', 'cotags']:
+            try:
+                newrow.append(rowDict.pop(key))
+            except:
+                newrow.append('')
+        newrow.append(superHeader['tutorial'])
+        extrasList = [rowDict[key] for key in header if key in rowDict]
+        extras = '\n'.join(extrasList)
+        newrow.append(extras)
         newrow = tuple(newrow)
         processed.append(newrow)
     return processed
@@ -69,8 +79,8 @@ def load_memory(name, path):
 
 def _load_game(deck, username, loaddir = '.', name = None):
     if name is None:
-        header, cards = deck
-        filenameroot = username + '_' + header['name']
+        superHeader, header, cards = deck
+        filenameroot = username + '_' + superHeader['name']
         filenames = [
             name for name in os.listdir(loaddir) \
             if filenameroot in name
