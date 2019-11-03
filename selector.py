@@ -29,11 +29,17 @@ class Selector:
                 for card in self.deck \
                     if not tools.hashID(card) in self.history.past_cards
             ]
-        self.legit_past_cards = [
+        self.legit_past_cards = self.filter_for_current([
             card \
                 for card in self.history.past_cards \
                     if not card in self.history.get_last(5)
+            ])
+
+    def filter_for_current(self, cardList):
+        cardList = [
+            card for card in cardList if card in self.cardIDs
             ]
+        return cardList
 
     def retrieve_random_card(self, cardList = None):
         if cardList is None:
@@ -74,12 +80,11 @@ class Selector:
             self.history.latest_lambdas.items(),
             key = lambda item: item[1]
             )
-        cardList = [item[0] for item in lambdaList]
-        cardList = [
+        cardList = self.filter_for_current([
             card \
                 for card in [item[0] for item in lambdaList] \
                     if not card in self.history.get_last(5)
-            ]
+            ])
         if len(cardList) > 0:
             # print("Choosing card based on highest lambda value.")
             return cardList[-1]
