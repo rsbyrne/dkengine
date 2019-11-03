@@ -215,6 +215,7 @@ class Game:
         attempts = 0
         self.message(instruction)
         self.message(question)
+        self.countdown(3)
         while True:
             response = input("Answer:\n")
             if response == "exit":
