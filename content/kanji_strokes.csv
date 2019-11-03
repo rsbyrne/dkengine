@@ -1,6 +1,6 @@
 name=kanji_strokes,context=How many strokes in the kanji for:,tutorial=Draw the figure in your mind then type the number of strokes to help you remember:,ordered=True,reversible=False,,,
 prompt,response,hook,pretags,cotags,kanji,kunyo,onyo
-repetition marker,4,This character is used to indicate repetition of a previous character.,,,々,,カイ    こ.う
+repetition marker,3,This character is used to indicate repetition of a previous character.,,,々,,カイ    こ.う
 one,1,"The number ONE is laid on its side. As a primitive, it takes on the meaning of *floor' or *ceiling.",,,一,イチ　　イツ,ひと・つ　　ひと
 two,2,The Roman numeral for TWO on its side - one on top of the other.,,,二,ニ,ふた・つ　　ふた
 three,3,The Roman numeral for THREE on its side - one and one and one makes THREE.,,,三,サン,みっ・つ　　み・つ　　み
