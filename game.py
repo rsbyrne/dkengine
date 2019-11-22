@@ -232,6 +232,7 @@ class Game:
                 self.message(extra)
                 return timelapsed
             elif attempts == 0:
+                attempts += 1
                 self.message(hook)
                 self.message("Have a think...")
                 self.countdown(3)
