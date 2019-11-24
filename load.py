@@ -9,7 +9,8 @@ scriptPath = os.path.abspath(os.path.dirname(__file__))
 def load_deck(name, loadPath = '.'):
     extension = os.path.splitext(name)[1]
     if extension == '.json':
-        return load_deck_json(name, loadPath)
+        raise Exception("Not supported currently.")
+        # return load_deck_json(name, loadPath)
     elif extension == '.csv':
         return load_deck_csv(name, loadPath)
     elif extension == '' and loadPath == '.':
@@ -18,14 +19,14 @@ def load_deck(name, loadPath = '.'):
     else:
         raise Exception
 
-def load_deck_json(name, loadPath = '.'):
-    filePath = os.path.join(loadPath, name)
-    with open(filePath, 'r') as file:
-        deck = json.load(file)
-    deck = tuple(deck)
-    for index, row in enumerate(deck[1]):
-        deck[1][index] = tuple(row)
-    return deck
+# def load_deck_json(name, loadPath = '.'):
+    # filePath = os.path.join(loadPath, name)
+    # with open(filePath, 'r') as file:
+    #     deck = json.load(file)
+    # deck = tuple(deck)
+    # for index, row in enumerate(deck[1]):
+    #     deck[1][index] = tuple(row)
+    # return deck
 
 def load_deck_csv(name, loadPath = '.'):
     filePath = os.path.join(loadPath, name)
@@ -35,7 +36,7 @@ def load_deck_csv(name, loadPath = '.'):
         csv_reader = csv.reader(csv_file, delimiter = ',')
         for i, row in enumerate(csv_reader):
             if i == 0:
-                superHeader = row
+                superHeader = row[0].split(';')
             elif i == 1:
                 header = row
             else:
@@ -48,27 +49,31 @@ def load_deck_csv(name, loadPath = '.'):
                         if len(entry) > 0
                 ]
         }
-    data = process_data(data, header, superHeaderDict)
-    deck = (superHeaderDict, header, data)
-    return deck
+    deck = process_data(data, header, superHeaderDict)
+    return superHeaderDict, deck
+
+def process_entry(entry):
+    out = entry.split(';')
+    out = [subEntry.lstrip() for subEntry in out]
+    return out
 
 def process_data(data, header, superHeader):
     processed = []
+    context = superHeader['context']
+    norm_context = context + ': ' + header[0] + ' --> ' + header[1]
+    rev_context = context + ': ' + header[1] + ' --> ' + header[0]
     for row in data:
-        rowDict = {key: val for key, val in zip(header, row)}
-        newrow = []
-        newrow.append(superHeader['context'])
-        for key in ['prompt', 'response', 'hook', 'pretags', 'cotags']:
-            try:
-                newrow.append(rowDict.pop(key))
-            except:
-                newrow.append('')
-        newrow.append(superHeader['tutorial'])
-        extrasList = [rowDict[key] for key in header if key in rowDict]
-        extras = '\n'.join(extrasList)
-        newrow.append(extras)
-        newrow = tuple(newrow)
-        processed.append(newrow)
+        prompts = process_entry(row[0])
+        responses = process_entry(row[1])
+        extras = '\n'.join(row[2:])
+        for prompt in prompts:
+            entry = ((norm_context, prompt, responses), extras)
+            processed.append(entry)
+        if 'reversible' in superHeader:
+            if eval(superHeader['reversible']):
+                for response in responses:
+                    entry = ((rev_context, response, prompts), extras)
+                    processed.append(entry)
     return processed
 
 def load_memory(name, path):
@@ -77,9 +82,8 @@ def load_memory(name, path):
         memory = pickle.load(file)
     return memory
 
-def _load_game(deck, username, loaddir = '.', name = None):
+def _load_game(superHeader, deck, username, loaddir = '.', name = None):
     if name is None:
-        superHeader, header, cards = deck
         filenameroot = username + '_' + superHeader['name']
         filenames = [
             name for name in os.listdir(loaddir) \
@@ -91,4 +95,4 @@ def _load_game(deck, username, loaddir = '.', name = None):
     else:
         filename = name
     memory = load_memory(filename, loaddir)
-    return deck, username, memory
+    return superHeader, deck, username, memory
