@@ -65,7 +65,14 @@ def process_data(data, header, superHeader):
     for row in data:
         prompts = process_entry(row[0])
         responses = process_entry(row[1])
-        extras = '\n'.join(row[2:])
+        extras_list = [
+            ': '.join((heading, value)) \
+                for heading, value in zip(
+                    [*header[2:], *header[:2]],
+                    [*row[2:], *row[:2]]
+                    )
+            ]
+        extras = '\n'.join(extras_list)
         for prompt in prompts:
             entry = ((norm_context, prompt, responses), extras)
             processed.append(entry)

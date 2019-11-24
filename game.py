@@ -166,14 +166,12 @@ class Game:
         self.message("\n")
         self.message("TUTORIAL")
         context, prompt, response, extras = self._get_info(card)
-        self.message(prompt)
-        self.message(response)
         self.message(extras)
         self.countdown(2)
         self.message(context)
         while True:
-            self.message("Prompt: " + prompt)
-            typedback = input("Type the prompt:\n")
+            self.message("Read and repeat:")
+            typedback = input(prompt + '\n')
             if typedback == "exit" or typedback == "report":
                 return typedback
             else:
@@ -182,8 +180,7 @@ class Game:
                 else:
                     self.message("Try again.")
         while True:
-            self.message("Response: " + response)
-            typedback = input("Now type the response:\n")
+            typedback = input(response + '\n')
             if typedback == "exit" or typedback == "report":
                 return typedback
             else:
@@ -211,6 +208,9 @@ class Game:
                 return typedback
             elif typedback == "report":
                 self.report()
+            elif typedback == "":
+                self.message("Passed.")
+                return self.tutorial(card)
             elif typedback == response:
                 timelapsed = time.time() - starttime
                 if self._process_outcome(timelapsed) == 0.:
@@ -225,13 +225,9 @@ class Game:
                 self.message("Have a think...")
                 self.countdown(2)
             elif attempts > 0:
-                if typedback == "":
-                    self.message("Passed.")
-                    return self.tutorial(card)
-                else:
-                    self.graphics('downer')
-                    self.message("Incorrect.")
-                    return self.tutorial(card)
+                self.graphics('downer')
+                self.message("Incorrect.")
+                return self.tutorial(card)
             else:
                 raise Exception
 
