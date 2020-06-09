@@ -34,6 +34,7 @@ class Selector:
                 for card in self.history.past_cards \
                     if not card in self.history.get_last(5)
             ])
+        self.to_review_cards = []
 
     def filter_for_current(self, cardList):
         cardList = [

@@ -4,6 +4,7 @@ import pickle
 import json
 import codecs
 from collections import OrderedDict
+from tools import hashID
 
 scriptPath = os.path.abspath(os.path.dirname(__file__))
 
@@ -54,31 +55,39 @@ def load_deck_csv(name, loadPath = '.'):
     return superHeaderDict, deck
 
 def process_data(data, header, superHeader):
-    processed = []
+    deck = []
+    assert not 'prerequisites' in superHeader and 'reversible' in superHeader
     context = superHeader['context']
     norm_context = context + ': ' + header[0] + ' --> ' + header[1]
     rev_context = context + ': ' + header[1] + ' --> ' + header[0]
-    process_entry = lambda entry: \
-        tuple([subEntry.lstrip() for subEntry in entry.split(';')])
+    process_entry = lambda entry, delim: \
+        tuple([subEntry.strip() for subEntry in entry.split(delim)])
     for row in data:
-        prompts = process_entry(row[0])
-        responses = process_entry(row[1])
-        extrasDict = OrderedDict(zip(
+        prompts = process_entry(row[0], ';')
+        responses = process_entry(row[1], ';')
+        extras = OrderedDict(zip(
             [*header[2:], *header[:2]],
             [*row[2:], *row[:2]]
             ))
-        extras = '\n'.join([': '.join((h, v)) for h, v in extrasDict.items()])
         for prompt in prompts:
             prereqs = []
             entry = ((norm_context, prompt, responses), prereqs, extras)
-            processed.append(entry)
+            deck.append(entry)
         if 'reversible' in superHeader:
             if eval(superHeader['reversible']):
                 for response in responses:
                     prereqs = []
                     entry = ((rev_context, response, prompts), prereqs, extras)
-                    processed.append(entry)
-    return processed
+                    deck.append(entry)
+    if 'prerequisites' in superHeader:
+        prereqCol = superHeader['prerequisites']
+        hashIDs = dict([(c[0][1], hashID(c)) for c in cards])
+        for data, prereqs, extras in deck:
+            prereqs.extend([
+                [hashIDs[c] for c in process_entry(cs, ',')]
+                    for cs in process_entry(extras[prereqCol], ';')
+                ])
+    return deck
 
 def load_memory(name, path):
     filepath = os.path.join(path, name)
