@@ -3,7 +3,7 @@ import os
 import csv
 
 def hashID(card):
-    cardstring = card[0][1] + card[0][1] + ''.join(card[0][2])
+    cardstring = card[0][0] + card[0][1] + ''.join(card[0][2])
     cardID = hashlib.sha256(cardstring.encode('utf-8')).hexdigest()
     return cardID
 
