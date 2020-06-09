@@ -120,7 +120,7 @@ class Game:
         self.message(graphicsDict[key])
 
     def _get_info(self, card):
-        data, extras = card
+        data, prereqs, extras = card
         context, prompt, responses = data
         response = '; '.join(responses)
         response.rstrip()

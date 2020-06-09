@@ -3,6 +3,7 @@ import csv
 import pickle
 import json
 import codecs
+from collections import OrderedDict
 
 scriptPath = os.path.abspath(os.path.dirname(__file__))
 
@@ -52,34 +53,30 @@ def load_deck_csv(name, loadPath = '.'):
     deck = process_data(data, header, superHeaderDict)
     return superHeaderDict, deck
 
-def process_entry(entry):
-    out = entry.split(';')
-    out = [subEntry.lstrip() for subEntry in out]
-    return out
-
 def process_data(data, header, superHeader):
     processed = []
     context = superHeader['context']
     norm_context = context + ': ' + header[0] + ' --> ' + header[1]
     rev_context = context + ': ' + header[1] + ' --> ' + header[0]
+    process_entry = lambda entry: \
+        tuple([subEntry.lstrip() for subEntry in entry.split(';')])
     for row in data:
         prompts = process_entry(row[0])
         responses = process_entry(row[1])
-        extras_list = [
-            ': '.join((heading, value)) \
-                for heading, value in zip(
-                    [*header[2:], *header[:2]],
-                    [*row[2:], *row[:2]]
-                    )
-            ]
-        extras = '\n'.join(extras_list)
+        extrasDict = OrderedDict(zip(
+            [*header[2:], *header[:2]],
+            [*row[2:], *row[:2]]
+            ))
+        extras = '\n'.join([': '.join((h, v)) for h, v in extrasDict.items()])
         for prompt in prompts:
-            entry = ((norm_context, prompt, responses), extras)
+            prereqs = []
+            entry = ((norm_context, prompt, responses), prereqs, extras)
             processed.append(entry)
         if 'reversible' in superHeader:
             if eval(superHeader['reversible']):
                 for response in responses:
-                    entry = ((rev_context, response, prompts), extras)
+                    prereqs = []
+                    entry = ((rev_context, response, prompts), prereqs, extras)
                     processed.append(entry)
     return processed
 
